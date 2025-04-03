@@ -77,9 +77,27 @@ public class XMLExporter implements JmeExporter {
 
     @Override
     public void save(Savable object, OutputStream outputStream) throws IOException {
-        Document document = null;
+        Document document;
         try {
-            document = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+            DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+            // Disallow DOCTYPE declaration entirely to prevent XXE
+            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+            // Disable external entities
+            dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            // Disable loading of external DTDs
+            dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+            // Disable XInclude and prevent expansion of entity references
+            dbf.setXIncludeAware(false);
+            dbf.setExpandEntityReferences(false);
+            // Enable secure processing
+            dbf.setFeature(javax.xml.XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            // Prevent external DTD or schema access
+            dbf.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            dbf.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+
+            document = dbf.newDocumentBuilder().newDocument();
+            document.setXmlStandalone(true);
         } catch (ParserConfigurationException ex) {
             throw new IOException(ex);
         }
@@ -95,6 +113,9 @@ public class XMLExporter implements JmeExporter {
 
         try {
             TransformerFactory tfFactory = TransformerFactory.newInstance();
+            // Prevent external DTDs and stylesheets from being accessed
+            tfFactory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_DTD, "");
+            tfFactory.setAttribute(javax.xml.XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
             tfFactory.setAttribute("indent-number", indentSpaces);
 
             Transformer transformer = tfFactory.newTransformer();
